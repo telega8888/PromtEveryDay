@@ -1,4 +1,4 @@
-import csv
+import csv 
 import random
 import os
 import requests
@@ -46,15 +46,14 @@ def translate_to_russian(text):
     print("Перевод:", text[:60])
     try:
         response = requests.post(
-            "https://libretranslate.de/translate",
+            "https://lt.psf.lt/translate",
             data={
                 "q": text,
                 "source": "en",
                 "target": "ru",
                 "format": "text"
             },
-            headers={"Accept": "application/json"},
-            timeout=10
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
         result = response.json()
         return result["translatedText"]
