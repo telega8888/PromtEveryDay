@@ -2,6 +2,7 @@ import csv
 import random
 import os
 import requests
+import re
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
@@ -22,9 +23,15 @@ def get_all_prompts():
             reader = csv.DictReader(csvfile)
             for row in reader:
                 prompt = row.get("prompt") or row.get("Prompt") or row.get("text")
-                if prompt and "http" not in prompt:
-                    prompts.append(prompt.strip())
+                if prompt:
+                    prompt = clean_prompt(prompt.strip())
+                    if prompt and "http" not in prompt and 20 < len(prompt) < 500:
+                        prompts.append(prompt)
     return prompts
+
+def clean_prompt(prompt):
+    # Удаляет вводные фразы в квадратных скобках в начале
+    return re.sub(r"^\[.*?\]\s*", "", prompt).strip()
 
 def load_translations():
     translations = {}
@@ -53,13 +60,14 @@ def translate_to_russian(text):
                 "target": "ru",
                 "format": "text"
             },
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
+            timeout=10
         )
         result = response.json()
-        return result["translatedText"]
+        return result.get("translatedText", text)
     except Exception as e:
         print("Ошибка перевода:", e)
-        return text  # если ошибка — вернём оригинал
+        return text
 
 def send_to_telegram(text):
     message = f"💡 Сегодняшний промт:\n\n{text}"
