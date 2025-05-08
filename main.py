@@ -1,41 +1,26 @@
 import csv
 import random
 import os
-from telegram import Bot
-from telegram.ext import Application, ContextTypes
-from telegram.ext import JobQueue
-import datetime
+import requests
 
-# Получаем токен из переменной окружения
-TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = "@название_твоего_канала"  # Пример: "@prompt_every_day"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = os.getenv("CHANNEL_ID")  # формат: @your_channel
 
-# Загружаем промты из CSV
-def load_prompts():
-    with open("prompts.csv", newline='', encoding="utf-8") as csvfile:
+def get_random_prompt(filename):
+    with open(filename, newline='', encoding='utf-8') as csvfile:
         reader = csv.DictReader(csvfile)
-        return [f"🧠 *{row['act']}*\n\n{row['prompt']}" for row in reader]
+        prompts = [row["prompt"] for row in reader if "prompt" in row]
+        return random.choice(prompts)
 
-prompts = load_prompts()
-
-# Задача: отправить случайный промт в канал
-async def send_prompt(context: ContextTypes.DEFAULT_TYPE):
-    prompt = random.choice(prompts)
-    await context.bot.send_message(chat_id=CHANNEL_ID, text=prompt, parse_mode="Markdown")
-
-# Основной запуск
-async def main():
-    application = Application.builder().token(TOKEN).build()
-    job_queue = application.job_queue
-
-    # Отправка каждый день в 10:00 UTC
-    job_queue.run_daily(send_prompt, time=datetime.time(hour=10, minute=0))
-
-    await application.initialize()
-    await application.start()
-    await application.updater.start_polling()
-    await application.idle()
+def send_to_telegram(text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": CHANNEL_ID,
+        "text": text
+    }
+    response = requests.post(url, data=payload)
+    print(response.status_code, response.text)
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    prompt = get_random_prompt("prompts.csv")
+    send_to_telegram(prompt)
