@@ -43,7 +43,7 @@ def save_translation(original, translated):
         writer.writerow([original.strip(), translated.strip()])
 
 def translate_to_russian(text):
-    print("Перевод:", text[:60])
+    print(f"Перевод: {text[:60]}...")  # Выводим первые 60 символов для отслеживания
     try:
         response = requests.post(
             "https://lt.psf.lt/translate",
@@ -55,11 +55,16 @@ def translate_to_russian(text):
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
-        result = response.json()
-        return result["translatedText"]
+        print(f"Ответ от переводчика: {response.status_code}")
+        if response.status_code == 200:
+            result = response.json()
+            return result.get("translatedText", text)  # если не нашли переведённый текст — возвращаем оригинал
+        else:
+            print(f"Ошибка API перевода: {response.status_code}")
+            return text
     except Exception as e:
-        print("Ошибка перевода:", e)
-        return text  # если ошибка — вернём оригинал
+        print(f"Ошибка при запросе к API перевода: {e}")
+        return text  # возвращаем оригинал при ошибке
 
 def send_to_telegram(text):
     message = f"💡 Сегодняшний промт:\n\n{text}"
@@ -69,7 +74,7 @@ def send_to_telegram(text):
         "text": message
     }
     response = requests.post(url, data=payload)
-    print(response.status_code, response.text)
+    print(f"Ответ Telegram API: {response.status_code}, {response.text}")
 
 if __name__ == "__main__":
     all_prompts = get_all_prompts()
