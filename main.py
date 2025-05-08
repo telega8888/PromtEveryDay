@@ -46,14 +46,15 @@ def translate_to_russian(text):
     print("Перевод:", text[:60])
     try:
         response = requests.post(
-            "https://translate.argosopentech.com/translate",
+            "https://libretranslate.de/translate",
             data={
                 "q": text,
                 "source": "en",
                 "target": "ru",
                 "format": "text"
             },
-            headers={"Accept": "application/json"}
+            headers={"Accept": "application/json"},
+            timeout=10
         )
         result = response.json()
         return result["translatedText"]
