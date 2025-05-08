@@ -3,6 +3,7 @@ import random
 import os
 import requests
 import re
+import time
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
@@ -25,12 +26,11 @@ def get_all_prompts():
                 prompt = row.get("prompt") or row.get("Prompt") or row.get("text")
                 if prompt:
                     prompt = clean_prompt(prompt.strip())
-                    if prompt and "http" not in prompt and 20 < len(prompt) < 500:
+                    if prompt and "http" not in prompt:
                         prompts.append(prompt)
     return prompts
 
 def clean_prompt(prompt):
-    # Удаляет вводные фразы в квадратных скобках в начале
     return re.sub(r"^\[.*?\]\s*", "", prompt).strip()
 
 def load_translations():
@@ -49,25 +49,29 @@ def save_translation(original, translated):
         writer = csv.writer(f)
         writer.writerow([original.strip(), translated.strip()])
 
-def translate_to_russian(text):
-    print("Перевод:", text[:60])
-    try:
-        response = requests.post(
-            "https://libretranslate.de/translate",
-            data={
-                "q": text,
-                "source": "en",
-                "target": "ru",
-                "format": "text"
-            },
-            headers={"Accept": "application/json"},
-            timeout=10
-        )
-        result = response.json()
-        return result.get("translatedText", text)
-    except Exception as e:
-        print("Ошибка перевода:", e)
-        return text
+def translate_to_russian(text, attempts=2):
+    print("Перевожу:", text[:60])
+    for attempt in range(attempts):
+        try:
+            response = requests.post(
+                "https://libretranslate.de/translate",
+                data={
+                    "q": text,
+                    "source": "en",
+                    "target": "ru",
+                    "format": "text"
+                },
+                headers={"Accept": "application/json"},
+                timeout=15
+            )
+            result = response.json()
+            translated = result.get("translatedText")
+            if translated and translated.strip() and translated.strip().lower() != text.strip().lower():
+                return translated.strip()
+        except Exception as e:
+            print(f"[Ошибка перевода, попытка {attempt+1}]:", e)
+        time.sleep(2)
+    return text.strip()
 
 def send_to_telegram(text):
     message = f"💡 Сегодняшний промт:\n\n{text}"
