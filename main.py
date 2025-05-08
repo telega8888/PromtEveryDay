@@ -67,7 +67,7 @@ def translate_to_russian(text):
         return text  # возвращаем оригинал при ошибке
 
 def send_to_telegram(text):
-    message = f"💡 Сегодняшний промт:\n\n{text}"
+    message = f"💡 Today promt:\n\n{text}"
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": CHANNEL_ID,
