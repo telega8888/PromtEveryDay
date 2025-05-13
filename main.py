@@ -1,41 +1,42 @@
 import os
-import pandas as pd
 import random
+import pandas as pd
 import telegram
 
-# Настройки
-EXCEL_PATH = "datasets/prompts/740.xlsx"
+# Константы
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
+EXCEL_PATH = "datasets/prompts/740.xlsx"
 
-# Инициализация бота
-bot = telegram.Bot(token=BOT_TOKEN)
-
-def get_random_prompt(path):
+def load_prompt_from_excel(file_path):
     try:
-        # Заголовки находятся во 2-й строке → header=1
-        df = pd.read_excel(path, header=1)
-        if 'Русский' not in df.columns or 'Английский' not in df.columns:
+        df = pd.read_excel(file_path, header=1)  # Заголовки на второй строке
+        if 'English' not in df.columns or 'Russian' not in df.columns:
             print("Нужные колонки не найдены в Excel.")
-            return None, None
-
-        row = df.sample().iloc[0]
-        return row['Русский'], row['Английский']
+            return None
+        row = df.sample(1).iloc[0]
+        return row['English'], row['Russian']
     except Exception as e:
-        print(f"Ошибка при чтении Excel: {e}")
-        return None, None
-
-def format_message(russian, english):
-    return f"💡 *Промт дня*\n\n🇷🇺 *Русский*\n{russian}\n\n🇬🇧 *English*\n{english}"
+        print(f"Ошибка при загрузке Excel: {e}")
+        return None
 
 def main():
-    ru, en = get_random_prompt(EXCEL_PATH)
-    if not ru or not en:
+    bot = telegram.Bot(token=BOT_TOKEN)
+
+    prompt = load_prompt_from_excel(EXCEL_PATH)
+    if prompt is None:
         print("Не удалось получить промт.")
         return
 
-    message = format_message(ru, en)
-    bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode=telegram.constants.ParseMode.MARKDOWN)
+    english_prompt, russian_prompt = prompt
+
+    message = (
+        "💡 *Сегодняшний промт:*\n\n"
+        f"*EN:*\n```\n{english_prompt}\n```\n\n"
+        f"*RU:*\n```\n{russian_prompt}\n```"
+    )
+
+    bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode='Markdown')
 
 if __name__ == "__main__":
     main()
