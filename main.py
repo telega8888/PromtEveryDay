@@ -1,60 +1,41 @@
+import os
 import pandas as pd
 import random
-import requests
-import os
+import telegram
 
-# 👉 Замените на ваш токен и ID канала
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")  # Пример: -1001234567890
+# Настройки
+EXCEL_PATH = "datasets/prompts/740.xlsx"
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = os.getenv("CHANNEL_ID")
 
-def get_random_prompt_from_excel(filepath):
+# Инициализация бота
+bot = telegram.Bot(token=BOT_TOKEN)
+
+def get_random_prompt(path):
     try:
-        df = pd.read_excel(filepath, engine='openpyxl')
-
-        # Проверяем, есть ли нужные колонки
-        if "Русский" not in df.columns or "Английский" not in df.columns:
+        # Заголовки находятся во 2-й строке → header=1
+        df = pd.read_excel(path, header=1)
+        if 'Русский' not in df.columns or 'Английский' not in df.columns:
             print("Нужные колонки не найдены в Excel.")
             return None, None
 
-        ru_prompts = df["Русский"].dropna().tolist()
-        en_prompts = df["Английский"].dropna().tolist()
-
-        if not ru_prompts or not en_prompts or len(ru_prompts) != len(en_prompts):
-            print("Недостаточно данных или несовпадение строк.")
-            return None, None
-
-        idx = random.randint(0, len(ru_prompts) - 1)
-        return en_prompts[idx], ru_prompts[idx]
-
+        row = df.sample().iloc[0]
+        return row['Русский'], row['Английский']
     except Exception as e:
         print(f"Ошибка при чтении Excel: {e}")
         return None, None
 
-def send_message_telegram(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHANNEL_ID,
-        "text": text,
-        "parse_mode": "Markdown"
-    }
-    response = requests.post(url, data=payload)
-    print(f"Ответ Telegram API: {response.status_code}, {response.text}")
+def format_message(russian, english):
+    return f"💡 *Промт дня*\n\n🇷🇺 *Русский*\n{russian}\n\n🇬🇧 *English*\n{english}"
 
 def main():
-    filepath = "datasets/prompts/740.xlsx"
-    en_prompt, ru_prompt = get_random_prompt_from_excel(filepath)
-
-    if not en_prompt or not ru_prompt:
+    ru, en = get_random_prompt(EXCEL_PATH)
+    if not ru or not en:
         print("Не удалось получить промт.")
         return
 
-    message = (
-        "💡 *Сегодняшний промт:*\n\n"
-        f"🇺🇸 *English:*\n`{en_prompt}`\n\n"
-        f"🇷🇺 *Перевод:*\n`{ru_prompt}`"
-    )
-
-    send_message_telegram(message)
+    message = format_message(ru, en)
+    bot.send_message(chat_id=CHANNEL_ID, text=message, parse_mode=telegram.constants.ParseMode.MARKDOWN)
 
 if __name__ == "__main__":
     main()
