@@ -11,11 +11,11 @@ EXCEL_PATH = "datasets/prompts/740.xlsx"
 def load_prompt_from_excel(file_path):
     try:
         df = pd.read_excel(file_path, header=1)  # Заголовки на второй строке
-        if 'English' not in df.columns or 'Russian' not in df.columns:
+        if 'Английский' not in df.columns or 'Русский' not in df.columns:
             print("Нужные колонки не найдены в Excel.")
             return None
         row = df.sample(1).iloc[0]
-        return row['English'], row['Russian']
+        return row['Английский'], row['Русский']
     except Exception as e:
         print(f"Ошибка при загрузке Excel: {e}")
         return None
