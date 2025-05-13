@@ -1,93 +1,60 @@
-import csv 
+import pandas as pd
 import random
-import os
 import requests
+import os
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHANNEL_ID = os.getenv("CHANNEL_ID")
+# 👉 Замените на ваш токен и ID канала
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")  # Пример: -1001234567890
 
-PROMPT_FILES = [
-    "prompts.csv",
-    "datasets/prompts/GPTFuzzer.csv"
-]
-
-TRANSLATED_FILE = "translated_prompts.csv"
-
-def get_all_prompts():
-    prompts = []
-    for file in PROMPT_FILES:
-        if not os.path.exists(file):
-            continue
-        with open(file, newline='', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                prompt = row.get("prompt") or row.get("Prompt") or row.get("text")
-                if prompt and "http" not in prompt:
-                    prompts.append(prompt.strip())
-    return prompts
-
-def load_translations():
-    translations = {}
-    if os.path.exists(TRANSLATED_FILE):
-        with open(TRANSLATED_FILE, newline='', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if len(row) == 2:
-                    en, ru = row
-                    translations[en.strip()] = ru.strip()
-    return translations
-
-def save_translation(original, translated):
-    with open(TRANSLATED_FILE, "a", newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow([original.strip(), translated.strip()])
-
-def translate_to_russian(text):
-    print(f"Перевод: {text[:60]}...")  # Выводим первые 60 символов для отслеживания
+def get_random_prompt_from_excel(filepath):
     try:
-        response = requests.post(
-            "https://lt.psf.lt/translate",
-            data={
-                "q": text,
-                "source": "en",
-                "target": "ru",
-                "format": "text"
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"}
-        )
-        print(f"Ответ от переводчика: {response.status_code}")
-        if response.status_code == 200:
-            result = response.json()
-            return result.get("translatedText", text)  # если не нашли переведённый текст — возвращаем оригинал
-        else:
-            print(f"Ошибка API перевода: {response.status_code}")
-            return text
-    except Exception as e:
-        print(f"Ошибка при запросе к API перевода: {e}")
-        return text  # возвращаем оригинал при ошибке
+        df = pd.read_excel(filepath, engine='openpyxl')
 
-def send_to_telegram(text):
-    message = f"💡 Today promt:\n\n{text}"
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        # Проверяем, есть ли нужные колонки
+        if "Русский" not in df.columns or "Английский" not in df.columns:
+            print("Нужные колонки не найдены в Excel.")
+            return None, None
+
+        ru_prompts = df["Русский"].dropna().tolist()
+        en_prompts = df["Английский"].dropna().tolist()
+
+        if not ru_prompts or not en_prompts or len(ru_prompts) != len(en_prompts):
+            print("Недостаточно данных или несовпадение строк.")
+            return None, None
+
+        idx = random.randint(0, len(ru_prompts) - 1)
+        return en_prompts[idx], ru_prompts[idx]
+
+    except Exception as e:
+        print(f"Ошибка при чтении Excel: {e}")
+        return None, None
+
+def send_message_telegram(text):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {
-        "chat_id": CHANNEL_ID,
-        "text": message
+        "chat_id": TELEGRAM_CHANNEL_ID,
+        "text": text,
+        "parse_mode": "Markdown"
     }
     response = requests.post(url, data=payload)
     print(f"Ответ Telegram API: {response.status_code}, {response.text}")
 
+def main():
+    filepath = "datasets/prompts/740.xlsx"
+    en_prompt, ru_prompt = get_random_prompt_from_excel(filepath)
+
+    if not en_prompt or not ru_prompt:
+        print("Не удалось получить промт.")
+        return
+
+    message = (
+        "💡 *Сегодняшний промт:*\n\n"
+        f"🇺🇸 *English:*\n`{en_prompt}`\n\n"
+        f"🇷🇺 *Перевод:*\n`{ru_prompt}`"
+    )
+
+    send_message_telegram(message)
+
 if __name__ == "__main__":
-    all_prompts = get_all_prompts()
-    if not all_prompts:
-        send_to_telegram("Промты не найдены.")
-    else:
-        chosen_prompt = random.choice(all_prompts)
-        translations = load_translations()
-
-        if chosen_prompt in translations:
-            translated = translations[chosen_prompt]
-        else:
-            translated = translate_to_russian(chosen_prompt)
-            save_translation(chosen_prompt, translated)
-
-        send_to_telegram(translated)
+    main()
