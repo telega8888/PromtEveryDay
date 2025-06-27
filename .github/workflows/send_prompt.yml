@@ -1,8 +1,8 @@
 name: Send daily prompt
 
 on:
-  schedule:
-    - cron: "0 12 * * *"  # каждый день в 8:00 UTC
+  #schedule:
+   # - cron: "0 12 * * *"  # каждый день в 8:00 UTC
   workflow_dispatch:
 
 jobs:
